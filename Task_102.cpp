@@ -40,7 +40,7 @@ int main(int argc, char* argv[]) {
     const int SCREEN_WIDTH = 800;
     const int SCREEN_HEIGHT = 600;
     int circleRadius = 200;
-    const int INITIAL_RADIUS = 200;
+    const int INITIAL_RADIUS = 100;
     const int RADIUS_INCREMENT = 2;
 
     SDL_Window* window = NULL;
