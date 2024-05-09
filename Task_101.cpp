@@ -1,83 +1,70 @@
-#include <SDL2/SDL.h>
-#include <stdio.h>
+    #include <SDL2/SDL.h>
+#include <iostream>
+#include <cmath>
 
-const int SCREEN_WIDTH = 700;
-const int SCREEN_HEIGHT = 500;
+using namespace std;
 
-// Function to initialize SDL
-bool initializeSDL(SDL_Window** window, SDL_Renderer** renderer) {
-    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-        printf("SDL initialization failed: %s\n", SDL_GetError());
+bool initializeSDL(SDL_Window*& window, SDL_Renderer*& renderer, int screenWidth, int screenHeight) {
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        cout << "SDL could not initialize! SDL_Error: " << SDL_GetError() << endl;
         return false;
     }
 
-    *window = SDL_CreateWindow("Colorful Background", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
-    if (*window == NULL) {
-        printf("Window creation failed: %s\n", SDL_GetError());
+    window = SDL_CreateWindow("Circle Drawing", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, screenWidth, screenHeight, 0);
+    if (window == NULL) {
+        cout << "Window could not be created! SDL_Error: " << SDL_GetError() << endl;
         return false;
     }
 
-    *renderer = SDL_CreateRenderer(*window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    if (*renderer == NULL) {
-        printf("Renderer creation failed: %s\n", SDL_GetError());
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    if (renderer == NULL) {
+        cout << "Renderer could not be created! SDL_Error: " << SDL_GetError() << endl;
         return false;
     }
 
     return true;
 }
 
-// Function to draw a circle
 void drawCircle(SDL_Renderer* renderer, int centerX, int centerY, int radius) {
-    int x = radius;
-    int y = 0;
-    int err = 0;
-
-    while (x >= y) {
-        SDL_RenderDrawPoint(renderer, centerX + x, centerY + y);
-        SDL_RenderDrawPoint(renderer, centerX + y, centerY + x);
-        SDL_RenderDrawPoint(renderer, centerX - y, centerY + x);
-        SDL_RenderDrawPoint(renderer, centerX - x, centerY + y);
-        SDL_RenderDrawPoint(renderer, centerX - x, centerY - y);
-        SDL_RenderDrawPoint(renderer, centerX - y, centerY - x);
-        SDL_RenderDrawPoint(renderer, centerX + y, centerY - x);
-        SDL_RenderDrawPoint(renderer, centerX + x, centerY - y);
-
-        if (err <= 0) {
-            y += 1;
-            err += 2 * y + 1;
-        }
-        if (err > 0) {
-            x -= 1;
-            err -= 2 * x + 1;
+    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+    for (int y = -radius; y <= radius; y++) {
+        for (int x = -radius; x <= radius; x++) {
+            if (x * x + y * y <= radius * radius) {
+                SDL_RenderDrawPoint(renderer, centerX + x, centerY + y);
+            }
         }
     }
 }
 
 int main(int argc, char* argv[]) {
+    const int SCREEN_WIDTH = 800;
+    const int SCREEN_HEIGHT = 600;
+    const int CIRCLE_RADIUS = 200;
+
     SDL_Window* window = NULL;
     SDL_Renderer* renderer = NULL;
 
-    if (!initializeSDL(&window, &renderer)) {
+    if (!initializeSDL(window, renderer, SCREEN_WIDTH, SCREEN_HEIGHT)) {
         return 1;
     }
 
-    bool running = true;
+    bool isRunning = true;
     SDL_Event event;
 
-    while (running) {
-        while (SDL_PollEvent(&event)) {
+    int centerX = SCREEN_WIDTH / 2;
+    int centerY = SCREEN_HEIGHT / 2;
+
+    while (isRunning) {
+        while (SDL_PollEvent(&event) != 0) {
             if (event.type == SDL_QUIT) {
-                running = false;
+                isRunning = false;
             }
         }
 
-        // Set background color
-        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255); 
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
 
-        // Draw circle
-        SDL_SetRenderDrawColor(renderer, 255, 255,255, 255); // White circle
-        drawCircle(renderer, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 200);
+        drawCircle(renderer, centerX, centerY, CIRCLE_RADIUS);
 
         SDL_RenderPresent(renderer);
     }
