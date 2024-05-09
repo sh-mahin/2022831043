@@ -72,7 +72,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Set background color
-        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255); // Red background
+        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255); 
         SDL_RenderClear(renderer);
 
         // Draw circle
