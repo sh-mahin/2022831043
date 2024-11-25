@@ -1,1 +1,218 @@
+#include <SDL2/SDL.h>
+#include <deque>
+#include <cstdlib>
+#include <ctime>
+#include <iostream>
+using namespace std;
+
+const int WINDOW_WIDTH = 640;      // Width of the game window
+const int WINDOW_HEIGHT = 440;     // Height of the game window
+const int TILE_SIZE = 20;          // Size of each tile in the grid
+
+// Enum to represent the direction of the snake
+enum Direction { UP, DOWN, LEFT, RIGHT };
+
+class SnakeGame {
+public:
+    // Constructor to initialize the game
+    SnakeGame() : direction(RIGHT), snakeSize(1), score(0), lastAppleTime(0) {
+        
+        // Initialize SDL
+        if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+            cerr << "Failed to initialize SDL: " << SDL_GetError() << endl;
+            exit(1);
+        }
+
+        // Create SDL window and renderer
+        window = SDL_CreateWindow("Snake Game", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
+        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+
+        // Initialize snake's head and body
+        snakeHead = {WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2, TILE_SIZE, TILE_SIZE};
+        snakeBody.push_back(snakeHead);
+
+        // Initialize random seed for apple generation
+        srand(static_cast<unsigned>(time(0)));
+        generateApple();  // Generate the first apple
+    }
+
+    // Destructor to clean up SDL resources
+    ~SnakeGame() {
+        SDL_DestroyRenderer(renderer); // Destroy renderer
+        SDL_DestroyWindow(window);     // Destroy window
+        SDL_Quit();                    // Quit SDL
+    }
+
+    // Main function to run the game loop
+    void run() {
+        bool running = true;
+        SDL_Event event;
+
+        // Game loop: runs until the window is closed
+        while (running) {
+            // Handle events (key presses and window close event)
+            while (SDL_PollEvent(&event)) {
+                if (event.type == SDL_QUIT) {
+                    running = false;  // End the game if the window is closed
+                } else if (event.type == SDL_KEYDOWN) {
+                    handleDirection(event.key.keysym.sym); // Handle key press for snake direction
+                }
+            }
+
+            // Update the game state (move the snake, check collisions)
+            update(); 
+
+            // Render the updated game state (snake and apple)
+            render(); 
+
+            // Generate a new apple every 4 seconds
+            generateAppleWithTimer(4); 
+
+            // Delay for a short period to control game speed
+            SDL_Delay(110); 
+        }
+    }
+
+private:
+    SDL_Window* window;               // SDL window object
+    SDL_Renderer* renderer;           // SDL renderer object
+    SDL_Rect snakeHead;               // The head of the snake
+    deque<SDL_Rect> snakeBody;        // The body of the snake
+    SDL_Rect apple;                   // The apple that the snake eats
+    Direction direction;              // The current direction of the snake
+    int snakeSize;                    // The current size of the snake
+    int score;                        // The player's score
+    Uint32 lastAppleTime;             // Time when the last apple was generated
+
+    // Function to generate a random coordinate for the apple
+    int getRandomCoord() {
+        return (rand() % (WINDOW_WIDTH / TILE_SIZE)) * TILE_SIZE;
+    }
+
+    // Function to handle changes in the snake's direction
+    void handleDirection(SDL_Keycode key) {
+        // Change direction based on key press, but prevent 180-degree turns
+        switch (key) {
+            case SDLK_UP:
+                if (direction != DOWN) direction = UP; // Don't allow reverse movement
+                break;
+            case SDLK_DOWN:
+                if (direction != UP) direction = DOWN;
+                break;
+            case SDLK_LEFT:
+                if (direction != RIGHT) direction = LEFT;
+                break;
+            case SDLK_RIGHT:
+                if (direction != LEFT) direction = RIGHT;
+                break;
+        }
+    }
+
+    // Function to update the game state (move the snake and check for collisions)
+    void update() {
+        // Move the snake's head based on the current direction
+        switch (direction) {
+            case UP:    snakeHead.y -= TILE_SIZE; break;
+            case DOWN:  snakeHead.y += TILE_SIZE; break;
+            case LEFT:  snakeHead.x -= TILE_SIZE; break;
+            case RIGHT: snakeHead.x += TILE_SIZE; break;
+        }
+
+        // Check if the snake hits the top or bottom wall (game over condition)
+        if (snakeHead.y < 0 || snakeHead.y >= WINDOW_HEIGHT) {
+            gameOver(); // End the game if snake hits the top or bottom wall
+            return;
+        }
+
+        // Check if the snake collides with itself
+        for (const auto& segment : snakeBody) {
+            if (snakeHead.x == segment.x && snakeHead.y == segment.y) {
+                gameOver(); // End the game if snake hits itself
+                return;
+            }
+        }
+
+        // Check if the snake eats the apple
+        if (snakeHead.x == apple.x && snakeHead.y == apple.y) {
+            score++;         // Increase score
+            snakeSize++;     // Increase snake size
+            generateApple(); // Generate new apple after eating it
+        }
+
+        // Handle left and right wall wrapping
+        if (snakeHead.x < 0) {
+            snakeHead.x = WINDOW_WIDTH - TILE_SIZE; // Wrap around from left to right
+        } else if (snakeHead.x >= WINDOW_WIDTH) {
+            snakeHead.x = 0; // Wrap around from right to left
+        }
+
+        // Add the new head to the front of the snake's body
+        snakeBody.push_front(snakeHead);
+
+        // If the snake's body size exceeds its current size, remove the tail
+        while (snakeBody.size() > static_cast<size_t>(snakeSize)) {
+            snakeBody.pop_back();
+        }
+    }
+
+    // Function to render the game state (draw the snake and apple)
+    void render() {
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Set background color to black
+        SDL_RenderClear(renderer); // Clear the screen
+
+        // Render apple (red color)
+        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+        SDL_RenderFillRect(renderer, &apple);
+
+        // Render snake (green color)
+        SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+        for (const auto& segment : snakeBody) {
+            SDL_RenderFillRect(renderer, &segment);
+        }
+
+        SDL_RenderPresent(renderer); // Display the rendered content
+    }
+
+    // Function to generate a new apple at a random position
+    void generateApple() {
+        apple = {getRandomCoord(), getRandomCoord(), TILE_SIZE, TILE_SIZE}; // Random position for the apple
+        lastAppleTime = SDL_GetTicks(); // Record the time when the apple was generated
+    }
+
+    // Function to generate a new apple after a time interval (in seconds)
+    void generateAppleWithTimer(int timeLimit) {
+        Uint32 currentTime = SDL_GetTicks(); // Get current time
+        if ((currentTime - lastAppleTime) >= (timeLimit * 1000)) {
+            generateApple(); // Generate a new apple after the time limit
+        }
+    }
+
+    // Function to handle the game over scenario
+    void gameOver() {
+        cout << "Game Over! Your Score: " << score << endl; // Display the score when the game ends
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Set background color to black
+        SDL_RenderClear(renderer); // Clear the screen
+        SDL_RenderPresent(renderer); // Display the screen
+        SDL_Delay(1500); // Wait for 1.5 seconds before resetting the game
+        resetGame(); // Reset the game
+    }
+
+    // Function to reset the game to the initial state
+    void resetGame() {
+        snakeHead = {WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2, TILE_SIZE, TILE_SIZE}; // Reset snake position
+        snakeBody.clear(); // Clear the snake's body
+        snakeBody.push_back(snakeHead); // Add the snake head to the body
+        snakeSize = 1; // Reset snake size
+        score = 0;     // Reset score
+        direction = RIGHT; // Reset snake's direction
+        generateApple(); // Generate a new apple
+    }
+};
+
+// Main function that starts the game
+int SDL_main(int argc, char* argv[]) {
+    SnakeGame game; // Create a game object
+    game.run();     // Run the game
+    return 0;
+}
 
